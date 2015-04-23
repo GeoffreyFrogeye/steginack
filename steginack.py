@@ -8,11 +8,11 @@ get_bin = lambda x, n: x >= 0 and str(bin(x))[2:].zfill(n) or "-" + str(bin(x))[
 # From http://stackoverflow.com/a/21732313/2766106
 
 
-def hideInFile(infile, hidefile, bits, outfile):
-    inim = Image.open(infile)
-    hideim = Image.open(hidefile)
+def hideInFile(args):
+    inim = Image.open(args.infile)
+    hideim = Image.open(args.hidefile)
     assert inim.size == hideim.size, "Both image must be of the same size"
-    assert 0 <= bits <= 8
+    assert 0 <= args.bits <= 8
     outim = Image.new('RGB', inim.size)
     eta = ETA(inim.size[0] * inim.size[1])
     for x in range(inim.size[0]):
@@ -24,7 +24,7 @@ def hideInFile(infile, hidefile, bits, outfile):
                 inbyt = get_bin(incol[cp], 8)
                 hidebyt = get_bin(hidecol[cp], 8)
                 outbyt = list(inbyt)
-                for bit in range(bits):
+                for bit in range(args.bits):
                     outbyt[-bit - 1] = hidebyt[bit]
                 outcol.append(int(''.join(outbyt), 2))
             outim.putpixel((x, y), tuple(outcol))
@@ -32,11 +32,11 @@ def hideInFile(infile, hidefile, bits, outfile):
     eta.done()
     inim.close()
     hideim.close()
-    outim.save(outfile, 'PNG')
+    outim.save(args.outfile, 'PNG')
 
 
-def inverseFile(infile, outfile):
-    inim = Image.open(infile)
+def inverseFile(args):
+    inim = Image.open(args.infile)
     outim = Image.new('RGB', inim.size)
     eta = ETA(inim.size[0] * inim.size[1])
     for x in range(inim.size[0]):
@@ -53,17 +53,26 @@ def inverseFile(infile, outfile):
             eta.print_status(x * inim.size[1] + y)
     eta.done()
     inim.close()
-    outim.save(outfile, 'PNG')
+    outim.save(args.outfile, 'PNG')
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Hide an image inside another and decode images")
+
     parser.add_argument('infile', metavar='INFILE', type=str, help="Input file")
+
+    subparsers = parser.add_subparsers(dest='action')
+    subparsers.required = True
+
+    hidep = subparsers.add_parser('hide')
+    hidep.add_argument('hidefile', metavar='HIDEFILE', type=str, help="File to hide")
+    hidep.add_argument('bits', metavar='BITS', type=int, help="Number of bits to use for hiding")
+    hidep.set_defaults(func=hideInFile)
+
+    inversep = subparsers.add_parser('inverse')
+    inversep.set_defaults(func=inverseFile)
+
     parser.add_argument('outfile', metavar='OUTFILE', type=str, help="Output file")
-    parser.add_argument('-b', '--bits', type=int, help="Number of bits to use for hiding")
-    parser.add_argument('-s', '--hide', type=str, help="File to hide")
+
     args = parser.parse_args()
-    if args.hide:
-        hideInFile(args.infile, args.hide, args.bits, args.outfile)
-    else:
-        inverseFile(args.infile, args.outfile)
+    args.func(args)
